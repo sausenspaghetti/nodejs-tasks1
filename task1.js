@@ -27,13 +27,11 @@ function removeSpaces (text) {
     text = text
         .replace(/(\s)+/g, '$1')                // Не более одного пробела подряд
         .replace(/\s*([,.!?]+)\s*/g, '$1 ')     // Знаки пунктуации имеют пробел после них и не имеют перед
+        .replace(/\s*$/, '')                    // Убираем все пробелы в конце строкт
+        .replace(/^\s*/, '');                   // Убираем все пробелы в начале строки
     
-    // TODO: если строка заканчивается на знак пунктуации, в конце окажется пробел.
-    // Исправить позже
-
     return text;
 }
-
 
 
 /*
@@ -63,7 +61,6 @@ function getUniqWords (text) {
 
 
 
-
 /*
     some additional functions
 */
@@ -82,9 +79,9 @@ function isPunctuationMark (char) {
 */
 function getWordsArray (text) {
     let res = text
-        .split(/[\s,.!?]/)                          // разбиваем текст по пробелам/знакам пунктуации
-        .filter(word => word == '' ? false : true)  // удаляем пустые слова
-        .map(word => word.toLowerCase());           // приводим все нижнему регистру
+        .split(/[\s,.!?:;]/)                            // разбиваем текст по пробелам/знакам пунктуации
+        .filter(word => word == '' ? false : true)      // удаляем пустые слова
+        .map(word => word.toLowerCase());               // приводим все нижнему регистру
     return res;
 }
 
