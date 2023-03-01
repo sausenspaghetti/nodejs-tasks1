@@ -1,15 +1,11 @@
-/* 
-    2.Написать модуль, который способен выполнять операции с числами любой длины.
-    4 метода для сложения, умножения, вычитания и деления.
-*/
 /*
-    TODO: 
-        1. done
-        2. done
+    TODO:
+        1. Как присваивать this, это вообще возможно ?
+        2. Доделать sub, чтобы работало с this < num (!!!)
         3. toString - пофиксить прикол с нулями
+
         4. Реализовать умножение
         5. Подумать как реализовать деление
-        6. Покрыть все тестами (!!!!)
 
 */
 'use strict';
@@ -58,8 +54,8 @@ class LongInt {
             this = num -> 0
             this < num -> -1
 
-        флаг ignoreSign - для сравнения абсолютных значений.
-        Если ignoreSign = true - знаки игнорируются
+        флаг ignoreSing - для сравнения абсолютных значений.
+        Если ignoreSigh = true - знаки игнорируются
     */
     compare(num, ignoreSign = false) {
         if ( (num instanceof LongInt) == false) {
@@ -114,7 +110,7 @@ class LongInt {
 
         if( this.sign != num.sign ) {
             // Написал немного запутанно во избежание лишнего копирования.
-            this.sign = -this.sign;
+            this.sign = -this.sigh;
             this.sub(num);
             this.sign = -this.sign;
             this._removeZeros();
@@ -146,8 +142,8 @@ class LongInt {
             // кинем исключение
             return null;
         }
+        
 
-        // Если у чисел разные знаки, можно свести к суммированию.
         if( this.sign != num.sign ) {
             this.sign = -this.sign;
             this.sum(num);
@@ -178,46 +174,6 @@ class LongInt {
     }
 
 
-    mul (num) {
-        if( (num instanceof LongInt) == false){
-            return null; // бросить исключение
-        }
-        
-        // К этому числу будем прибавлять все остальные
-        let total = new LongInt('0');
-
-        // Умножение в столбик
-        for(let radix = 0; radix < num.digits.length; radix++) {
-            let next = this._mulShort(num.digits[radix]);
-            next._shiftRight(radix);
-            total.sum(next);
-        }
-
-        total.sign = this.sign * num.sign;
-        [this.digits, this.sign] = [total.digits, total.sign];
-
-        return this;
-    }
-
-    // 0 <= intNum < BASE
-    _mulShort(intNum) {
-        // intNum is Int
-        let res = this._copy();
-        res.sign = res.sign * (intNum >= 0 ? 1 : -1);
-        intNum = Math.abs(intNum);
-
-        // Умножение в столбик
-        let remn = 0;
-        for(let i = 0; i < res.digits.length || (remn != 0); i++) {
-            if (i == res.digits.length) res.digits.push(0);
-
-            let curr = remn + res.digits[i] * intNum;
-            res.digits[i] = (curr) % BASE;
-            remn = Math.floor(curr / BASE);
-        }
-
-        return res;
-    }
 
 
     /*
@@ -232,13 +188,6 @@ class LongInt {
         } 
     }
 
-    _shiftRight(count=1) {
-        this._removeZeros();
-        if (this.digits.length > 0 && count != 0) {
-            this.digits.unshift(...Array(count).fill(0));
-        }
-    }
-
     _copy() {
         let res = new LongInt('');
         res.digits = [...this.digits];
@@ -251,4 +200,6 @@ class LongInt {
         tmp.sign = -tmp.sign;
         return tmp;
     }
+
+
 };
