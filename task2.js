@@ -3,7 +3,7 @@
     4 метода для сложения, умножения, вычитания и деления.
 */
 'use strict';
-export { LongInt };
+export { LongInt , sum, sub, div, mul };
 
 const BASE = 1000 * 1000;
 const BASE_SIZE = 6;
@@ -154,7 +154,6 @@ class LongInt {
             tmp.sub(this);
             tmp.sign = -tmp.sign;
             this.assign(tmp);
-            // [this.digits, this.sign] = [[...tmp.digits], tmp.sign];
             return this;
         }
 
@@ -188,8 +187,6 @@ class LongInt {
 
         total.sign = this.sign * num.sign;
         this.assign(total);
-        // [this.digits, this.sign] = [total.digits, total.sign];
-
         return this;
     }
 
@@ -226,28 +223,40 @@ class LongInt {
 
             let m = remn.digits.length;
             let n = divider.digits.length;
+            
+            let shiftCount = Math.max(m - n, 0);
             remnSlice.digits = remn.digits.slice(Math.max(m - n, 0)); // [pos, m) | m - pos  == n
-            // Мало отрезали, режем больше
+            // Если мало отрезали, режем больше
             if (remnSlice.compare(divider) < 0) {
                 remnSlice.digits = remn.digits.slice(Math.max(m - n - 1, 0));
+                shiftCount = Math.max(m - n - 1, 0);
             }
 
             // бинарным поиском ищем подходящее число, чтобы вычесть.
-            let left = 0, right = BASE, x = 0;
+            let left = 1, right = BASE, x = 1;
             
+            // Ищем наибольшее x, при котором: remn - x * divider >= 0 
             while ( left < right ) {
                 let mid = Math.floor((right + left) / 2);
                 let midTmp = divider._mulShort(mid);
-                if ( midTmp.compare(divider) <= 0 ) {
+                let cmp = midTmp.compare(remnSlice);
+
+                if (cmp == 0){
+                    x = mid;
+                    break;
+                } 
+                else if (cmp == 1) {
+                    right = mid - 1;
+                }
+                else {
                     x = mid;
                     left = mid + 1;
                 }
-                else {
-                    right = mid - 1;
-                }
             }
             res.digits.unshift(x);
-            remn.sub(divider._divShort(x)); // remn - x * divider
+            let tmpSub = divider._mulShort(x)._shiftRight(shiftCount); 
+            remn.sub(tmpSub); // remn - x * divider
+            remn._removeZeros();
         }
 
         res.sign = this.sign * num.sign;
@@ -316,6 +325,7 @@ class LongInt {
         if (this.digits.length > 0 && count != 0) {
             this.digits.unshift(...Array(count).fill(0));
         }
+        return this;
     }
 
     _shiftLeft(count=1) {
@@ -323,6 +333,7 @@ class LongInt {
         if (count <= 0 || this.digits.length == 0) return;
 
         this.digits = this.digits.splice(0, Math.min(count, this.digits.length));
+        return this;
     }
 
     _copy() {
@@ -343,3 +354,35 @@ class LongInt {
         [this.digits, this.sign] = [[...num.digits], num.sign];
     }
 };
+
+
+
+
+function sum (firstVal, secondVal) {
+    firstVal = new LongInt(firstVal);
+    secondVal = new LongInt(secondVal);
+    firstVal.sum(secondVal);
+    return firstVal.toString();
+}
+
+
+function sub (firstVal, secondVal) {
+    firstVal  = new LongInt(firstVal);
+    secondVal = new LongInt(secondVal);
+    firstVal.sub(secondVal);
+    return firstVal.toString();
+}
+
+function mul (firstVal, secondVal) {
+    firstVal  = new LongInt(firstVal);
+    secondVal = new LongInt(secondVal);
+    firstVal.sum(secondVal);
+    return firstVal.toString();
+}
+
+function div (firstVal, secondVal) {
+    firstVal  = new LongInt(firstVal);
+    secondVal = new LongInt(secondVal);
+    firstVal.sum(secondVal);
+    return firstVal.toString();
+}
