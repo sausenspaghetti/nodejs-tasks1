@@ -6,11 +6,15 @@
     TODO: 
         1. done
         2. done
-        3. toString - пофиксить прикол с нулями
-        4. Реализовать умножение
-        5. Подумать как реализовать деление
+        3. done
+        4. done
+        5. Как реализовать деление
+            a. Найти приближения слева/справа - дальше искать бинарным поиском
+            б. Более строгое деление в столбик?
+            в. Проблема отрицательного нуля. Надо фиксить (!!!)
         6. Покрыть все тестами (!!!!)
         7. Рефакторинг -> выглядит слишком плохо.
+        8. 
 
 */
 'use strict';
@@ -49,7 +53,8 @@ class LongInt {
 
     fromInt (intNum) {
         let tmp = new LongInt(String(intNum))
-        [this.digits, this.sign] = [[...tmp.digits], tmp.sign];
+        this.assign(tmp);
+        // [this.digits, this.sign] = [[...tmp.digits], tmp.sign];
     }
 
 
@@ -163,15 +168,17 @@ class LongInt {
             let tmp = num._copy();
             tmp.sub(this);
             tmp.sign = -tmp.sign;
-            [this.digits, this.sign] = [[...tmp.digits], tmp.sign];
+            this.assign(tmp);
+            // [this.digits, this.sign] = [[...tmp.digits], tmp.sign];
             return this;
         }
 
-        // |this| > |num| . Можно вычитать.
+        // |this| > |num|. Можно вычитать.
         let remn = 0;
-        for(let pos = 0; pos < num.digits.length; pos++) {
-            this.digits[pos] -= remn + (pos < num.digits.length ? num.digits[pos]: pos);
-            remn = this.digits[pos] < 0;
+        for(let pos = 0; pos < num.digits.length || remn; pos++) {
+            this.digits[pos] -= remn + (pos < num.digits.length ? num.digits[pos]: 0);
+
+            remn = +(this.digits[pos] < 0);
             if (remn) this.digits[pos] += BASE;
         }
         this._removeZeros();
@@ -195,16 +202,111 @@ class LongInt {
         }
 
         total.sign = this.sign * num.sign;
-        [this.digits, this.sign] = [total.digits, total.sign];
+        this.assign(total);
+        // [this.digits, this.sign] = [total.digits, total.sign];
 
         return this;
     }
 
+    // Без комментариев
     div (num) {
         if ( (num instanceof LongInt) == false ) {
             return null; // Бросим исключение
         }
         
+        let cmp = this.compare(num. true); 
+        // Числа равны, по модулю. Результат равен произведению их знаков
+        if (cmp == 0) {
+            return this.sign * num.sign;
+        }
+        // |this| < |num| - целочисленное деление дает 0 
+        else if (cmp == -1) {
+            return 0;
+        }
+
+        // |this| > |num| - содержательный случай. 
+        // Будем искать искомое (res) бинарным поиском:
+
+        // Находим два приближения
+        // left <= res <= right 
+        let lastRadix = num.digits[num.digits.length - 1];
+        // Искомое >= left
+        let left = this._divShort(lastRadix);
+        left._shiftLeft(num.digits.length - 1);
+        left.sign = 1;
+
+        // Искомое <= right
+        let right;
+        if (lastRadix + 1 < BASE) {
+            right = this._divShort(lastRadix + 1);
+            right._shiftLeft(num.digits.length - 1);
+        }
+        // lastRadix + 1 == base
+        else {
+            right = this._copy()._shiftLeft(num.digits.length);
+        }
+        right.sign = 1;
+
+        // Создадим несколько вспомогательных переменных, а также копии
+        // делителя и делимого (чтобы не портить this и num).
+        let base = new LongInt(`${BASE}`);
+        let zero = new LongInt('0');
+
+        let divisible = new LongInt('');
+        divisible.assign(this);
+        divisible.sign = 1;
+
+        let divider = new LongInt('');
+        divider.assign(num);
+        divider.sign = 1;
+
+        // Бинарным поиском ищем точное решение:
+        while (left.compare(right) < 0) {
+            let tmp = left._copy();
+            // mid = (left + right) / 2
+            let mid = tmp.sum(right)._divShort(2);
+
+            // left + 1 == right --> 
+            if (mid.compare(left) == 0) {
+                this.assign(right);
+                return this;
+            }  
+
+            // Временная переменная
+            let midTmp = new LongInt('');
+            midTmp.assign(mid);
+
+            // remn = this - mid * num
+            let tmpD = divisible._copy(); 
+            let remn = tmpD.sub(midTmp.mul(divider));
+        
+            // Запоминаем результаты сравнения
+            let cmpD = remn.compare(divider);
+            let cmpZ = remn.compare(zero);
+            
+            //  0 <= remn < divider --> mid - искомой
+            if (cmpD == -1 && cmpZ >= 0){
+                this.assign(mid);
+                return this;
+            }
+            // частный случай remn == divider, нам очень повезло
+            else if ( cmpD == 0) {
+                mid.sum(new LongInt('1'));
+                this.assign(mid);
+                return this;
+            }
+            //  remn > divider --> слишком мало взяли, left = mid;
+            else if (remn.compare(divider > 0) ) {
+                left.assign(mid);
+            }
+            //  remn < 0 --> слишком много взяли, right = mid;
+            else if (true) {
+                right.assign(mid);
+            }
+        }
+
+        this.assign(left);
+        return this;
     }
 
     /*
@@ -256,7 +358,7 @@ class LongInt {
 
     // Удаляет нули в старших разрядах.
     _removeZeros() {
-        while(this.digits.length > 0 ){
+        while(this.digits.length > 0 ) {
             if (this.digits[this.digits.length - 1] != 0) break;
             this.digits.pop();
         } 
@@ -287,5 +389,10 @@ class LongInt {
         let tmp = this._copy();
         tmp.sign = -tmp.sign;
         return tmp;
+    }
+
+    assign(num) {
+        if( (num instanceof LongInt ) == false) return;
+        [this.digits, this.sign] = [[...num.digits], num.sign];
     }
 };
