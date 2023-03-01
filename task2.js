@@ -10,6 +10,7 @@
         4. Реализовать умножение
         5. Подумать как реализовать деление
         6. Покрыть все тестами (!!!!)
+        7. Рефакторинг -> выглядит слишком плохо.
 
 */
 'use strict';
@@ -199,7 +200,18 @@ class LongInt {
         return this;
     }
 
-    // 0 <= intNum < BASE
+    div (num) {
+        if ( (num instanceof LongInt) == false ) {
+            return null; // Бросим исключение
+        }
+        
+    }
+
+    /*
+        Деление/умножение на маленькие (меньше BASE по модулю) числа.
+        0 <= intNum < BASE
+    */
+    
     _mulShort(intNum) {
         // intNum is Int
         let res = this._copy();
@@ -216,6 +228,24 @@ class LongInt {
             remn = Math.floor(curr / BASE);
         }
 
+        return res;
+    }
+
+    _divShort(intNum) {
+        let res = this._copy();
+        res.sign = res.sign * (intNum >= 0 ? 1 : -1);
+        intNum = Math.abs(intNum);
+
+        // Деление в столбик
+        let remn = 0;
+        for(let i = res.digits.length - 1; i >= 0; i--) {
+            // Переполнения и ошибок точности не произойдет
+            let cur = res.digits[i] + remn * BASE;
+            res.digits[i] = Math.floor(cur / intNum);
+            remn = cur % intNum;
+        }
+
+        res._removeZeros();
         return res;
     }
 
@@ -237,6 +267,13 @@ class LongInt {
         if (this.digits.length > 0 && count != 0) {
             this.digits.unshift(...Array(count).fill(0));
         }
+    }
+
+    _shiftLeft(count=1) {
+        this._removeZeros();
+        if (count <= 0 || this.digits.length == 0) return;
+
+        this.digits = this.digits.splice(0, Math.min(count, this.digits.length));
     }
 
     _copy() {
