@@ -208,7 +208,6 @@ class LongInt {
         return this;
     }
 
-    // Без комментариев
     div (num) {
         if ( (num instanceof LongInt) == false ) {
             return null; // Бросим исключение
@@ -224,88 +223,51 @@ class LongInt {
             return 0;
         }
 
-        // |this| > |num| - содержательный случай. 
-        // Будем искать искомое (res) бинарным поиском:
-
-        // Находим два приближения
-        // left <= res <= right 
-        let lastRadix = num.digits[num.digits.length - 1];
-        // Искомое >= left
-        let left = this._divShort(lastRadix);
-        left._shiftLeft(num.digits.length - 1);
-        left.sign = 1;
-
-        // Искомое <= right
-        let right;
-        if (lastRadix + 1 < BASE) {
-            right = this._divShort(lastRadix + 1);
-            right._shiftLeft(num.digits.length - 1);
-        }
-        // lastRadix + 1 == base
-        else {
-            right = this._copy()._shiftLeft(num.digits.length);
-        }
-        right.sign = 1;
-
-        // Создадим несколько вспомогательных переменных, а также копии
-        // делителя и делимого (чтобы не портить this и num).
-        let base = new LongInt(`${BASE}`);
-        let zero = new LongInt('0');
-
-        let divisible = new LongInt('');
-        divisible.assign(this);
+        // |this| >  |num| - содержательный случай
+        // Введем временные переменные (чтобы не портить this, num)
+        let divisible = this._copy();       // divisible.digits.length = m
         divisible.sign = 1;
 
-        let divider = new LongInt('');
-        divider.assign(num);
+        let divider = num._copy();          // divider.digits.length   = n
         divider.sign = 1;
 
-        // Бинарным поиском ищем точное решение:
-        while (left.compare(right) < 0) {
-            let tmp = left._copy();
-            // mid = (left + right) / 2
-            let mid = tmp.sum(right)._divShort(2);
+        let remn = divisible._copy();
+        let res = new LongInt('');
 
-            // left + 1 == right --> 
-            if (mid.compare(left) == 0) {
-                this.assign(right);
-                return this;
-            }  
+        // деление в столбик
+        while(remn.compare(divider) >= 0) {
+            // Нарезаем старшие разряды remn
+            let remnSlice = new LongInt('');
 
-            // Временная переменная
-            let midTmp = new LongInt('');
-            midTmp.assign(mid);
+            let m = remn.digits.length;
+            let n = divider.digits.length;
+            remnSlice.digits = remn.digits.slice(Math.max(m - n, 0)); // [pos, m) | m - pos  == n
+            // Мало отрезали, режем больше
+            if (remnSlice.compare(divider) < 0) {
+                remnSlice.digits = remn.digits.slice(Math.max(m - n - 1, 0));
+            }
 
-            // remn = this - mid * num
-            let tmpD = divisible._copy(); 
-            let remn = tmpD.sub(midTmp.mul(divider));
-        
-            // Запоминаем результаты сравнения
-            let cmpD = remn.compare(divider);
-            let cmpZ = remn.compare(zero);
+            // бинарным поиском ищем подходящее число, чтобы вычесть.
+            let left = 0, right = BASE, x = 0;
             
-            //  0 <= remn < divider --> mid - искомой
-            if (cmpD == -1 && cmpZ >= 0){
-                this.assign(mid);
-                return this;
+            while ( left < right ) {
+                let mid = Math.floor((right + left) / 2);
+                let midTmp = divider._mulShort(mid);
+                if ( midTmp.compare(divider) <= 0 ) {
+                    x = mid;
+                    left = mid + 1;
+                }
+                else {
+                    right = mid - 1;
+                }
             }
-            // частный случай remn == divider, нам очень повезло
-            else if ( cmpD == 0) {
-                mid.sum(new LongInt('1'));
-                this.assign(mid);
-                return this;
-            }
-            //  remn > divider --> слишком мало взяли, left = mid;
-            else if (remn.compare(divider > 0) ) {
-                left.assign(mid);
-            }
-            //  remn < 0 --> слишком много взяли, right = mid;
-            else if (true) {
-                right.assign(mid);
-            }
+            res.digits.unshift(x);
+            remn.sub(divider._divShort(x)); // remn - x * divider
         }
 
-        this.assign(left);
+        res.sign = this.sign * num.sign;
+        this.assign(res);
+
         return this;
     }
 
